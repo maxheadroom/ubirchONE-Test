@@ -55,6 +55,9 @@ void setup() {
 
 }
 
+char date[11];
+char time[4];
+char tz[4];
 
 void loop() {
     uint16_t status;
@@ -63,6 +66,9 @@ void loop() {
     enable_led();
     Serial.println("Enabling Watchdog: ");
     disable_watchdog();
+
+    // need to wake up before we can try again!
+    sim800.wakeup();
 
     while (!sim800.registerNetwork()) {
         Serial.println("Cycling the FONA for not registering on the network");
@@ -78,12 +84,7 @@ void loop() {
     }
     Serial.println("SIM800 GPRS attached");
 
-    // generate the server url from base and imei
-    char url[strlen_P(SERVER_URL) + 16];
-    char date;
-    char time;
-    char tz;
-    sim800.time((char *) &date, (char *) &time, (char *) &tz);
+    sim800.time(date, time, tz);
 
     Serial.print("Date: ");
     Serial.println(date);
@@ -100,6 +101,8 @@ void loop() {
     Serial.print("TZ length: ");
     Serial.println(strlen_P(tz));
 
+    // generate the server url from base and imei
+    char url[strlen_P(SERVER_URL) + 16];
     strncpy_P(url, SERVER_URL, strlen_P(SERVER_URL));
     sim800.IMEI(url + strlen_P(SERVER_URL));
 
@@ -113,7 +116,8 @@ void loop() {
 
     // remove erroneous content
     if(status != 200) {
-        Serial.println("HTTP GET failed.");
+        Serial.print("HTTP GET failed: ");
+        Serial.println(status);
     } else {
         Serial.println("HTTP GET successful!");
         Serial.print("Length: ");
@@ -132,10 +136,11 @@ void loop() {
     while(!sim800.shutdown()) {
         Serial.println("Trying to shut down FONA");
     };
+    Serial.println("SHUTDOWN DONE!");
 
     disable_led();
 
     disable_watchdog();
-    _delay_ms(30000);
+    _delay_ms(1000);
 
 }
